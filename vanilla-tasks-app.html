@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Tasks App</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+
+      h1 {
+        color: #4caf50;
+        text-align: center;
+        margin-bottom: 20px;
+      }
+
+      /* Custom style for form container */
+      .form-container {
+        background-color: #f2f2f2;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 10px;
+      }
+
+      .filter-container {
+        background-color: #f2f2f2;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 10px;
+      }
+
+      #taskForm label {
+        margin-right: 10px;
+      }
+
+      #taskForm input[type="text"],
+      #taskForm input[type="date"] {
+        padding: 5px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        flex: 1;
+      }
+
+      #taskForm button[type="submit"] {
+        background-color: #4caf50;
+        color: white;
+        padding: 5px 10px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      #taskList {
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 10px;
+      }
+
+      #taskList div {
+        margin-bottom: 10px;
+      }
+
+      .task-details {
+        font-size: 16px;
+        margin-bottom: 5px;
+      }
+
+      .task-details strong {
+        margin-right: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Tasks App</h1>
+    <div class="container">
+      <div class="row">
+        <!-- Column for entering a new task -->
+        <div class="col-12 col-md-6">
+          <div class="form-container">
+            <form id="taskForm">
+              <label for="description">Task Description:</label>
+              <input type="text" id="description" required />
+              <label for="dueDate">Due Date:</label>
+              <input type="date" id="dueDate" required />
+              <button type="submit">Create Task</button>
+            </form>
+          </div>
+        </div>
+        <!-- Column for filtering -->
+        <div class="col-12 col-md-6">
+          <div class="filter-container">
+            <div class="container mb-4">
+              <div class="row">
+                <div class="col-12">
+                  <label for="filterDueDate" class="form-label"
+                    >Filter by Due Date:</label
+                  >
+                  <input type="date" id="filterDueDate" class="form-control" />
+                </div>
+              </div>
+              <div class="row mt-2">
+                <div class="col-12">
+                  <label for="filterCompletion" class="form-label"
+                    >Filter by Completion:</label
+                  >
+                  <select id="filterCompletion" class="form-select">
+                    <option value="">All</option>
+                    <option value="true">Complete</option>
+                    <option value="false">Incomplete</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="taskList">
+      <!-- Tasks will be displayed here -->
+    </div>
+
+    <script>
+      const apiUrl =
+        "http://tasks-app-backend-3-env.eba-iiaw6pev.us-east-1.elasticbeanstalk.com/tasks";
+
+      async function createTask() {
+        const description = document.getElementById("description").value;
+        const dueDate = document.getElementById("dueDate").value;
+
+        const taskData = {
+          description: description,
+          dueDate: dueDate,
+          complete: false,
+        };
+
+        try {
+          const response = await fetch(apiUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(taskData),
+          });
+
+          const data = await response.json();
+          console.log("Task created:", data);
+          alert("Task created successfully!");
+
+          await getTasks();
+        } catch (error) {
+          console.error("Error creating task:", error);
+        }
+      }
+
+      async function getTasks() {
+        try {
+          const response = await fetch(apiUrl + "/all");
+          const data = await response.json();
+          console.log("Data:", data);
+
+          displayTasks(data);
+        } catch (error) {
+          console.error("Error fetching tasks:", error);
+        }
+      }
+
+      async function markTaskAsCompleted(taskId, complete) {
+        try {
+          const response = await fetch(
+            `${apiUrl}/${taskId}/status?complete=${complete}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error("Failed to mark task as completed.");
+          }
+
+          console.log("Task marked as completed.");
+
+          await getTasks();
+        } catch (error) {
+          console.error("Error marking task as completed:", error);
+        }
+      }
+
+      async function deleteTask(taskId) {
+        try {
+          await fetch(`${apiUrl}/${taskId}`, {
+            method: "DELETE",
+          });
+
+          console.log("Task deleted.");
+          alert("Task deleted successfully!");
+
+          await getTasks();
+        } catch (error) {
+          console.error("Error deleting task:", error);
+        }
+      }
+
+      function displayTasks(tasks) {
+        const taskList = document.getElementById("taskList");
+        taskList.innerHTML = "";
+
+        if (tasks.length === 0) {
+          const noTasksMessage = document.createElement("p");
+          noTasksMessage.innerText = "No tasks found matching the filter.";
+          taskList.appendChild(noTasksMessage);
+          return;
+        }
+
+        tasks.forEach((task) => {
+          const taskItem = document.createElement("div");
+          taskItem.innerHTML = `
+              <p class="task-details"><strong>Description:</strong> ${
+                task.description
+              }</p>
+              <p class="task-details"><strong>Due Date:</strong> ${
+                task.dueDate
+              }</p>
+              <p class="task-details"><strong>Complete:</strong> ${
+                task.complete ? "Yes" : "No"
+              }</p>
+              <button class="btn btn-success" onclick="markTaskAsCompleted(${
+                task.id
+              }, true)">Mark as Completed</button>
+              <button class="btn btn-danger" onclick="deleteTask(${
+                task.id
+              })">Delete</button>
+              <hr>
+            `;
+
+          taskList.appendChild(taskItem);
+        });
+      }
+
+      async function getTasksWithFilters() {
+        const filterDueDate = document.getElementById("filterDueDate").value;
+        const filterCompletion =
+          document.getElementById("filterCompletion").value;
+
+        const params = new URLSearchParams();
+
+        if (filterDueDate) {
+          params.append("dueDate", filterDueDate);
+        }
+
+        if (filterCompletion !== "") {
+          params.append("complete", filterCompletion);
+        }
+
+        let apiUrlWithParams = apiUrl + "/filter";
+
+        if (params.toString()) {
+          apiUrlWithParams += "?" + params.toString();
+        }
+
+        try {
+          const response = await fetch(apiUrlWithParams);
+
+          if (!response.ok) {
+            throw new Error("Bad Request");
+          }
+
+          const data = await response.json();
+          displayTasks(data);
+        } catch (error) {
+          console.error("Error fetching tasks with filters:", error);
+        }
+      }
+
+      document
+        .getElementById("taskForm")
+        .addEventListener("submit", function (event) {
+          event.preventDefault();
+          createTask();
+        });
+
+      document
+        .getElementById("filterDueDate")
+        .addEventListener("change", getTasksWithFilters);
+      document
+        .getElementById("filterCompletion")
+        .addEventListener("change", getTasksWithFilters);
+
+      (async function () {
+        try {
+          await getTasks();
+        } catch (error) {
+          console.error("Error fetching tasks:", error);
+        }
+      })();
+    </script>
+  </body>
+</html>
